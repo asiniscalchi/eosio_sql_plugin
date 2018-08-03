@@ -6,11 +6,11 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
 find_package(Soci)
 if(NOT SOCI_FOUND)
-    message(STATUS "Database SQL plugin: disabled")
+    message(STATUS "[Additional Plugin] EOSIO sql plugin disabled")
     return()
 endif()
 
-message(STATUS "Database SQL plugin: enabled")
+message(STATUS "[Additional Plugin] EOSIO sql plugin enabled")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} include db)
 
@@ -30,3 +30,7 @@ target_link_libraries(sql_db_plugin
     )
 
 add_subdirectory(test)
+
+eosio_additional_plugin(sql_db_plugin)
+
+
