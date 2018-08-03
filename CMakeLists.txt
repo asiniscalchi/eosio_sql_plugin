@@ -4,11 +4,7 @@ project(EOSIO_sql_plugin)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
-find_package(Soci)
-if(NOT SOCI_FOUND)
-    message(STATUS "[Additional Plugin] EOSIO sql plugin disabled")
-    return()
-endif()
+find_package(Soci REQUIRED)
 
 message(STATUS "[Additional Plugin] EOSIO sql plugin enabled")
 
