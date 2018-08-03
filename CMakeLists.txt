@@ -30,4 +30,3 @@ target_link_libraries(sql_db_plugin
     )
 
 add_subdirectory(test)
-
