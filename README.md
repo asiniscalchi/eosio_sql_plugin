@@ -6,10 +6,10 @@ on ubuntu 18.04 install the package libsoci-dev
 ```
 $ sudo apt install libsoci-dev
 ```
-then set EOSIO source to compile and include the plugin adding the following configuation param:
-
+add the following param on cmake execution:
+```
 -DEOSIO_ADDITIONAL_PLUGINS=<path_to_eosio_sql_plugin_source>
-
+```
 compile and run.
 ```
 $ nodeos --help
