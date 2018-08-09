@@ -1,12 +1,15 @@
 # eosio_sql_plugin
-
 EOSIO plugin to register blockchain data into an SQL database supported by SOCI ( https://github.com/SOCI/soci )
+
+**You need to compile EOSIO from source: additional plugins are linked statically**
+
+
 
 on ubuntu 18.04 install the package libsoci-dev
 ```
 $ sudo apt install libsoci-dev
 ```
-add the following param on cmake execution:
+add the following param on EOSIO cmake execution:
 ```
 -DEOSIO_ADDITIONAL_PLUGINS=<path_to_eosio_sql_plugin_source>
 ```
