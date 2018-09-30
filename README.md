@@ -26,5 +26,8 @@ Config Options for eosio::sql_db_plugin:
                                         specified then plugin is disabled. 
                                         Default database 'EOS' is used if not 
                                         specified in URI.
+  --sql_db-schema schema (=public)      Sql DB Schema setting string
+                                        Enabled for PostgreSQL only.
+                                        Defaults to 'public'.
 ....
 ```

@@ -3,7 +3,7 @@
 namespace eosio
 {
 
-database::database(const std::string &uri, uint32_t block_num_start)
+database::database(const std::string &uri, uint32_t block_num_start, const std::string &db_schema)
 {
     m_session = std::make_shared<soci::session>(uri);
     m_accounts_table = std::make_unique<accounts_table>(m_session);
@@ -12,6 +12,8 @@ database::database(const std::string &uri, uint32_t block_num_start)
     m_actions_table = std::make_unique<actions_table>(m_session);
     m_block_num_start = block_num_start;
     system_account = chain::name(chain::config::system_account_name).to_string();
+    schema = db_schema;
+    backend = m_session->get_backend_name();
 }
 
 void
@@ -48,14 +50,14 @@ database::consume(const std::vector<chain::block_state_ptr> &blocks)
 void
 database::wipe()
 {
-    *m_session << "SET foreign_key_checks = 0;";
+    this->set_drop_references_and_paths();
 
     m_actions_table->drop();
     m_transactions_table->drop();
     m_blocks_table->drop();
     m_accounts_table->drop();
 
-    *m_session << "SET foreign_key_checks = 1;";
+    this->set_create_references_and_paths();
 
     m_accounts_table->create();
     m_blocks_table->create();
@@ -69,6 +71,22 @@ bool
 database::is_started()
 {
     return m_accounts_table->exist(system_account);
+}
+
+void
+database::set_drop_references_and_paths() {
+    if (backend == "postgresql") {
+        *m_session << "SET search_path TO " << schema << ",public;";
+    } else {
+        *m_session << "SET foreign_key_checks = 0;";
+    }
+}
+
+void
+database::set_create_references_and_paths() {
+    if (backend == "mysql") {
+        *m_session << "SET foreign_key_checks = 1;";
+    }
 }
 
 } // namespace

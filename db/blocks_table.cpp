@@ -7,13 +7,13 @@ namespace eosio {
 blocks_table::blocks_table(std::shared_ptr<soci::session> session):
         m_session(session)
 {
-
+    backend = m_session->get_backend_name();
 }
 
 void blocks_table::drop()
 {
     try {
-        *m_session << "DROP TABLE IF EXISTS blocks";
+        *m_session << "DROP TABLE IF EXISTS blocks CASCADE";
     }
     catch(std::exception& e){
         wlog(e.what());
@@ -22,26 +22,18 @@ void blocks_table::drop()
 
 void blocks_table::create()
 {
-    *m_session << "CREATE TABLE blocks("
-            "id VARCHAR(64) PRIMARY KEY,"
-            "block_number INT NOT NULL AUTO_INCREMENT,"
-            "prev_block_id VARCHAR(64),"
-            "irreversible TINYINT(1) DEFAULT 0,"
-            "timestamp DATETIME DEFAULT NOW(),"
-            "transaction_merkle_root VARCHAR(64),"
-            "action_merkle_root VARCHAR(64),"
-            "producer VARCHAR(12),"
-            "version INT NOT NULL DEFAULT 0,"
-            "new_producers JSON DEFAULT NULL,"
-            "num_transactions INT DEFAULT 0,"
-            "confirmed INT, FOREIGN KEY (producer) REFERENCES accounts(name), UNIQUE KEY block_number (block_number)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;";
+    if (backend == "postgresql") {
+        this->create_postgresql();
+    }
+    else if (backend == "mysql") {
+        this->create_mysql();
+    }
+
+    // indices
 
     *m_session << "CREATE INDEX idx_blocks_producer ON blocks (producer);";
     *m_session << "CREATE INDEX idx_blocks_number ON blocks (block_number);";
-
 }
-
-
 
 void blocks_table::add(chain::signed_block_ptr block)
 {
@@ -52,26 +44,76 @@ void blocks_table::add(chain::signed_block_ptr block)
     const auto timestamp = std::chrono::seconds{block->timestamp.operator fc::time_point().sec_since_epoch()}.count();
     const auto num_transactions = (int)block->transactions.size();
 
-
-    *m_session << "REPLACE INTO blocks(id, block_number, prev_block_id, timestamp, transaction_merkle_root, action_merkle_root,"
-            "producer, version, confirmed, num_transactions) VALUES (:id, :in, :pb, FROM_UNIXTIME(:ti), :tr, :ar, :pa, :ve, :pe, :nt)",
-            soci::use(block_id_str),
-            soci::use(block->block_num()),
-            soci::use(previous_block_id_str),
-            soci::use(timestamp),
-            soci::use(transaction_mroot_str),
-            soci::use(action_mroot_str),
-            soci::use(block->producer.to_string()),
-            soci::use(block->schedule_version),
-            soci::use(block->confirmed),
-            soci::use(num_transactions);
+    *m_session << this->add_block(),
+            soci::use(block_id_str, "id"),
+            soci::use(block->block_num(), "in"),
+            soci::use(previous_block_id_str, "pb"),
+            soci::use(timestamp, "ti"),
+            soci::use(transaction_mroot_str, "tr"),
+            soci::use(action_mroot_str, "ar"),
+            soci::use(block->producer.to_string(), "pa"),
+            soci::use(block->schedule_version, "ve"),
+            soci::use(block->confirmed, "pe"),
+            soci::use(num_transactions, "nt");
 
     if (block->new_producers) {
         const auto new_producers = fc::json::to_string(block->new_producers->producers);
         *m_session << "UPDATE blocks SET new_producers = :np WHERE id = :id",
-                soci::use(new_producers),
-                soci::use(block_id_str);
+                soci::use(new_producers, "np"),
+                soci::use(block_id_str, "id");
     }
+}
+
+// private
+
+void blocks_table::create_mysql()
+{
+    *m_session << "CREATE TABLE blocks("
+        "id VARCHAR(64) PRIMARY KEY,"
+        "block_number INT NOT NULL AUTO_INCREMENT,"
+        "prev_block_id VARCHAR(64),"
+        "irreversible TINYINT(1) DEFAULT 0,"
+        "timestamp DATETIME DEFAULT NOW(),"
+        "transaction_merkle_root VARCHAR(64),"
+        "action_merkle_root VARCHAR(64),"
+        "producer VARCHAR(12),"
+        "version INT NOT NULL DEFAULT 0,"
+        "new_producers JSON DEFAULT NULL,"
+        "num_transactions INT DEFAULT 0,"
+        "confirmed INT, FOREIGN KEY (producer) REFERENCES accounts(name), UNIQUE KEY block_number (block_number)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;";
+}
+
+void blocks_table::create_postgresql()
+{
+   *m_session << "CREATE TABLE blocks ("
+        "id TEXT PRIMARY KEY,"
+        "block_number SERIAL,"
+        "prev_block_id TEXT,"
+        "irreversible INT DEFAULT 0,"
+        "timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,"
+        "transaction_merkle_root TEXT,"
+        "action_merkle_root TEXT,"
+        "producer TEXT REFERENCES accounts (name),"
+        "version INT NOT NULL DEFAULT 0,"
+        "new_producers JSONB DEFAULT NULL,"
+        "num_transactions INT DEFAULT 0,"
+        "confirmed INT,"
+        "UNIQUE (block_number)"
+    ");";
+}
+
+// blocks_table::add_block() defaults to MySQL syntax
+std::string blocks_table::add_block()
+{
+    if (backend == "postgresql") {
+        return "INSERT INTO blocks (id, block_number, prev_block_id, timestamp, transaction_merkle_root, action_merkle_root,"
+            "producer, version, confirmed, num_transactions) VALUES (:id, :in, :pb, to_timestamp(:ti), :tr, :ar, :pa, :ve, :pe, :nt) ON CONFLICT (block_number)"
+            " DO UPDATE SET prev_block_id=EXCLUDED.prev_block_id, timestamp=EXCLUDED.timestamp, transaction_merkle_root=EXCLUDED.transaction_merkle_root,"
+            "action_merkle_root=EXCLUDED.action_merkle_root, producer=EXCLUDED.producer, version=EXCLUDED.version, confirmed=EXCLUDED.confirmed, num_transactions=EXCLUDED.num_transactions";
+    }
+
+    return "REPLACE INTO blocks(id, block_number, prev_block_id, timestamp, transaction_merkle_root, action_merkle_root,"
+            "producer, version, confirmed, num_transactions) VALUES (:id, :in, :pb, FROM_UNIXTIME(:ti), :tr, :ar, :pa, :ve, :pe, :nt)";
 }
 
 } // namespace

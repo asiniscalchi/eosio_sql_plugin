@@ -24,6 +24,12 @@ public:
 
 private:
     std::shared_ptr<soci::session> m_session;
+    std::string backend;
+
+    std::string add_block();
+
+    void create_mysql();
+    void create_postgresql();
 };
 
 } // namespace
