@@ -33,9 +33,17 @@ public:
 
 private:
     std::shared_ptr<soci::session> m_session;
+    std::string backend;
 
-    void
-    parse_actions(chain::action action, fc::variant variant);
+    void parse_actions(chain::action action, fc::variant variant);
+
+    std::string add_action();
+    std::string add_action_account();
+    std::string upsert_stakes();
+    std::string upsert_votes();
+
+    void create_mysql();
+    void create_postgresql();
 };
 
 } // namespace

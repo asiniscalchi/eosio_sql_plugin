@@ -22,7 +22,7 @@ namespace eosio {
 class database : public consumer_core<chain::block_state_ptr>
 {
 public:
-    database(const std::string& uri, uint32_t block_num_start);
+    database(const std::string& uri, uint32_t block_num_start, const std::string& db_schema);
 
     void consume(const std::vector<chain::block_state_ptr>& blocks) override;
 
@@ -30,12 +30,18 @@ public:
     bool is_started();
 
 private:
+    void set_drop_references_and_paths();
+    void set_create_references_and_paths();
+
     std::shared_ptr<soci::session> m_session;
     std::unique_ptr<accounts_table> m_accounts_table;
     std::unique_ptr<actions_table> m_actions_table;
     std::unique_ptr<blocks_table> m_blocks_table;
     std::unique_ptr<transactions_table> m_transactions_table;
+    std::string schema;
     std::string system_account;
+    std::string backend;
+
     uint32_t m_block_num_start;
 };
 

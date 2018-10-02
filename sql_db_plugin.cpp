@@ -11,6 +11,7 @@ namespace {
 const char* BLOCK_START_OPTION = "sql_db-block-start";
 const char* BUFFER_SIZE_OPTION = "sql_db-queue-size";
 const char* SQL_DB_URI_OPTION = "sql_db-uri";
+const char* SQL_DB_SCHEMA_OPTION = "sql_db-schema";
 const char* HARD_REPLAY_OPTION = "hard-replay-blockchain";
 const char* RESYNC_OPTION = "delete-all-blocks";
 const char* REPLAY_OPTION = "replay-blockchain";
@@ -34,6 +35,9 @@ void sql_db_plugin::set_program_options(options_description& cli, options_descri
             (SQL_DB_URI_OPTION, bpo::value<std::string>(),
              "Sql DB URI connection string"
              " If not specified then plugin is disabled. Default database 'EOS' is used if not specified in URI.")
+             (SQL_DB_SCHEMA_OPTION, bpo::value<std::string>()->default_value("public"),
+             "Sql DB Schema setting string"
+             " Enabled for PostgreSQL only. Defaults to 'public'")
             ;
 }
 
@@ -49,7 +53,9 @@ void sql_db_plugin::plugin_initialize(const variables_map& options)
         }
         ilog("connecting to ${u}", ("u", uri_str));
         uint32_t block_num_start = options.at(BLOCK_START_OPTION).as<uint32_t>();
-        auto db = std::make_unique<database>(uri_str, block_num_start);
+        std::string db_schema = options.at(SQL_DB_SCHEMA_OPTION).as<std::string>();
+
+        auto db = std::make_unique<database>(uri_str, block_num_start, db_schema);
 
         if (options.at(HARD_REPLAY_OPTION).as<bool>() ||
                 options.at(REPLAY_OPTION).as<bool>() ||
